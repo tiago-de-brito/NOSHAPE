@@ -165,3 +165,50 @@ app.post('/treino', async (req, res) => {
         res.status(500).json({ mensagem: 'Erro ao inserir treino' });
     }
 });
+
+app.get('/treinos/:usuarioId', async (req, res) => {
+  const { usuarioId } = req.params;
+
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool.request()
+      .input('usuarioId', sql.Int, usuarioId)
+      .query(`
+        SELECT DISTINCT nome_exercicio
+        FROM treinos
+        WHERE usuario_id = @usuarioId
+      `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Erro ao buscar treinos:', err);
+    res.status(500).json({ erro: 'Erro ao buscar treinos' });
+  }
+});
+
+
+app.get('/progresso/:usuarioId/:exercicio', async (req, res) => {
+    const { usuarioId, exercicio } = req.params;
+
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .input('usuarioId', sql.Int, usuarioId)
+            .input('exercicio', sql.NVarChar, exercicio)
+            .query(`
+                SELECT 
+                    CAST(data AS DATE) AS data,
+                    SUM(peso * repeticoes) AS carga_total
+                FROM treinos
+                WHERE usuario_id = @usuarioId
+                  AND nome_exercicio = @exercicio
+                GROUP BY CAST(data AS DATE)
+                ORDER BY data
+            `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Erro ao buscar progresso:', err);
+        res.status(500).json({ mensagem: 'Erro ao buscar progresso' });
+    }
+});
